@@ -314,14 +314,43 @@ export default function App() {
             backgroundSize: "24px 24px",
           }}
         />
-        <div className="absolute inset-0">
+        <div
+          className="
+    absolute
+    inset-x-0
+    top-[55%]
+    bottom-0
+    overflow-hidden
+
+    md:top-0
+    md:bottom-auto
+    md:right-0
+    md:left-auto
+    md:w-1/2
+    md:h-full
+"
+        >
           <img
             src="https://images.unsplash.com/photo-1763665814538-8ba04597286c?w=900&h=900&fit=crop&auto=format"
             alt="Professional roofing installation by Maa Kamakhya team"
-            className="w-full h-full object-cover opacity-30"
+            className="w-full h-full object-cover opacity-30 md:translate-y-0"
           />
 
-          <div className="absolute inset-0 bg-[#0B2E6B]/80" />
+          <div
+            className="
+      absolute inset-0
+
+      bg-gradient-to-b
+    from-[#0B2E6B]
+    via-[#0B2E6B]/40
+      to-transparent
+
+      md:bg-gradient-to-r
+      md:from-[#0B2E6B]
+      md:via-[#0B2E6B]/60
+      md:to-transparent
+    "
+          />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-20 md:pb-28 grid md:grid-cols-2 gap-12 items-center w-full">
@@ -377,8 +406,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right image – mobile only
-          <div className="md:hidden rounded-2xl overflow-hidden shadow-2xl">
+          {/* Right image – mobile only */}
+          {/* <div className="md:hidden rounded-2xl overflow-hidden shadow-2xl">
             <img
               src="https://images.unsplash.com/photo-1763665814538-8ba04597286c?w=800&h=500&fit=crop&auto=format"
               alt="Roofing installation project"
