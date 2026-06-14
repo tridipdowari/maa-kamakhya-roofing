@@ -407,7 +407,7 @@ function PublicSite() {
                 <div className="inline-flex items-center gap-2 bg-[#F4B400]/15 border border-[#F4B400]/30 rounded-full px-4 py-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#F4B400] animate-pulse" />
                   <span className="text-[#F4B400] text-xs font-semibold tracking-wider uppercase">
-                    Est. {homepageSettings.yearsExperience} · Assam, India
+                    Est. 2015 · Assam, India
                   </span>
                 </div>
 
