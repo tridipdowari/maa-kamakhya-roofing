@@ -31,6 +31,9 @@ export default defineConfig({
     },
   },
 
+  // Serve index.html for all routes so React Router works on direct URL access / refresh
+  appType: 'spa',
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })
