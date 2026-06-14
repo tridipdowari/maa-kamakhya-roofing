@@ -1,8 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router";
 import { Toaster } from "sonner";
-import { quoteRequestService, homepageSettingsService } from "../lib/supabaseService";
-import type { HomepageSettings } from "../lib/supabaseService";
+import { quoteRequestService, homepageSettingsService, testimonialService } from "../lib/supabaseService";
+import type { HomepageSettings, Testimonial } from "../lib/supabaseService";
 import {
   Phone,
   MessageCircle,
@@ -184,6 +184,7 @@ function PublicSite() {
   const [formStatus, setFormStatus] = useState("");
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveTestimonials, setLiveTestimonials] = useState<Testimonial[]>([]);
 
   const onSubmitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -244,19 +245,24 @@ function PublicSite() {
   }, []);
 
   useEffect(() => {
-    const fetchHomepageSettings = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const settings = await homepageSettingsService.get();
-        setHomepageSettings(settings);
+        const [settings, testimonials] = await Promise.allSettled([
+          homepageSettingsService.get(),
+          testimonialService.getAll(),
+        ]);
+        if (settings.status === 'fulfilled') setHomepageSettings(settings.value);
+        if (testimonials.status === 'fulfilled') {
+          setLiveTestimonials(testimonials.value.filter(t => t.status === 'Published').slice(0, 6));
+        }
       } catch (error) {
-        console.error("Failed to fetch homepage settings:", error);
+        console.error("Failed to fetch data:", error);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchHomepageSettings();
+    fetchData();
   }, []);
 
   const phoneNumber = "+916370268346";
@@ -669,42 +675,20 @@ function PublicSite() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {homepageSettings && homepageSettings.whyChooseUsPoints && homepageSettings.whyChooseUsPoints.length > 0 ? (
-              <>
-                {homepageSettings.whyChooseUsPoints.map(({ title, description }, index) => (
-                  <div
-                    key={index}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-colors group"
-                  >
-                    <div className="w-12 h-12 bg-[#F4B400] rounded-xl flex items-center justify-center mb-4">
-                      {/* Use a default icon or rotate through some icons */}
-                      <Shield className="w-6 h-6 text-[#0B2E6B]" />
-                    </div>
-                    <h3 className="font-['Poppins',sans-serif] font-bold text-white mb-2">
-                      {title}
-                    </h3>
-                    <p className="text-blue-200 text-sm leading-relaxed">{description}</p>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <>
-                {FEATURES.map(({ icon: Icon, title, desc }) => (
-                  <div
-                    key={title}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-colors group"
-                  >
-                    <div className="w-12 h-12 bg-[#F4B400] rounded-xl flex items-center justify-center mb-4">
-                      <Icon className="w-6 h-6 text-[#0B2E6B]" />
-                    </div>
-                    <h3 className="font-['Poppins',sans-serif] font-bold text-white mb-2">
-                      {title}
-                    </h3>
-                    <p className="text-blue-200 text-sm leading-relaxed">{desc}</p>
-                  </div>
-                ))}
-              </>
-            )}
+            {FEATURES.map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-colors group"
+              >
+                <div className="w-12 h-12 bg-[#F4B400] rounded-xl flex items-center justify-center mb-4">
+                  <Icon className="w-6 h-6 text-[#0B2E6B]" />
+                </div>
+                <h3 className="font-['Poppins',sans-serif] font-bold text-white mb-2">
+                  {title}
+                </h3>
+                <p className="text-blue-200 text-sm leading-relaxed">{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -765,41 +749,49 @@ function PublicSite() {
             </h2>
           </div>
           <div className="grid sm:grid-cols-2 gap-6">
-            {TESTIMONIALS.map(
-              ({ name, location, rating, text, initials, color }) => (
-                <div
-                  key={name}
-                  className="bg-background rounded-2xl p-7 border border-border hover:shadow-md transition-shadow"
-                >
-                  <div className="flex gap-1 mb-4">
-                    {Array.from({ length: rating }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-4 h-4 fill-[#F4B400] text-[#F4B400]"
-                      />
-                    ))}
+            {(liveTestimonials.length > 0 ? liveTestimonials.map(t => ({
+              name: t.customerName,
+              location: t.location,
+              rating: t.rating,
+              text: t.reviewText,
+              initials: t.initials,
+              avatarColor: t.avatarColor,
+              color: null,
+            })) : TESTIMONIALS.map(t => ({
+              name: t.name,
+              location: t.location,
+              rating: t.rating,
+              text: t.text,
+              initials: t.initials,
+              avatarColor: null,
+              color: t.color,
+            }))).map(({ name, location, rating, text, initials, avatarColor, color }) => (
+              <div
+                key={name}
+                className="bg-background rounded-2xl p-7 border border-border hover:shadow-md transition-shadow"
+              >
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: rating }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-[#F4B400] text-[#F4B400]" />
+                  ))}
+                </div>
+                <p className="text-foreground/80 text-sm leading-relaxed mb-5">
+                  &ldquo;{text}&rdquo;
+                </p>
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 ${color ?? ''} rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0`}
+                    style={avatarColor ? { backgroundColor: avatarColor } : {}}
+                  >
+                    {initials}
                   </div>
-                  <p className="text-foreground/80 text-sm leading-relaxed mb-5">
-                    &ldquo;{text}&rdquo;
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 ${color} rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0`}
-                    >
-                      {initials}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#0B2E6B] text-sm">
-                        {name}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {location}, Assam
-                      </p>
-                    </div>
+                  <div>
+                    <p className="font-semibold text-[#0B2E6B] text-sm">{name}</p>
+                    <p className="text-muted-foreground text-xs">{location}, Assam</p>
                   </div>
                 </div>
-              ),
-            )}
+              </div>
+            ))}
           </div>
         </div>
       </section>

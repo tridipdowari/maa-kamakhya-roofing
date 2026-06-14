@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, GripVertical } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
 import { homepageSettingsService } from '@/lib/supabaseService';
@@ -46,28 +46,6 @@ export default function HomepageSettingsPage() {
     }
   };
 
-  const updatePoint = (i: number, field: 'title' | 'description', value: string) => {
-    setSettings(s => ({
-      ...s,
-      whyChooseUsPoints: s.whyChooseUsPoints.map((p, idx) =>
-        idx === i ? { ...p, [field]: value } : p
-      ),
-    }));
-  };
-
-  const addPoint = () => {
-    setSettings(s => ({
-      ...s,
-      whyChooseUsPoints: [...s.whyChooseUsPoints, { title: '', description: '' }],
-    }));
-  };
-
-  const removePoint = (i: number) => {
-    setSettings(s => ({
-      ...s,
-      whyChooseUsPoints: s.whyChooseUsPoints.filter((_, idx) => idx !== i),
-    }));
-  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -158,51 +136,6 @@ export default function HomepageSettingsPage() {
           </div>
         </div>
 
-        {/* Why Choose Us */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-2 h-4 bg-[#F4B400] rounded-full" />
-              Why Choose Us Points
-            </h2>
-            <button
-              onClick={addPoint}
-              className="flex items-center gap-1.5 text-xs font-bold text-[#0B2E6B] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Point
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {settings.whyChooseUsPoints.map((point, i) => (
-              <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl group">
-                <GripVertical className="w-4 h-4 text-gray-300 mt-3 shrink-0 cursor-grab" />
-                <div className="flex-1 space-y-2">
-                  <input
-                    type="text"
-                    value={point.title}
-                    onChange={e => updatePoint(i, 'title', e.target.value)}
-                    placeholder="Feature title"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#0B2E6B]/20 focus:border-[#0B2E6B] transition-all bg-white"
-                  />
-                  <input
-                    type="text"
-                    value={point.description}
-                    onChange={e => updatePoint(i, 'description', e.target.value)}
-                    placeholder="Feature description"
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 outline-none focus:ring-2 focus:ring-[#0B2E6B]/20 focus:border-[#0B2E6B] transition-all bg-white"
-                  />
-                </div>
-                <button
-                  onClick={() => removePoint(i)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors shrink-0 mt-1 opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Floating save on mobile */}
