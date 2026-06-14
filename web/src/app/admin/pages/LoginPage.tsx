@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Home, Eye, EyeOff, LogIn, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-
-// Demo credentials
-const DEMO_EMAIL = 'admin@maakamakhyaroofing.com';
-const DEMO_PASSWORD = 'Admin@2026';
+import { supabase } from '../../../lib/supabase';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -31,16 +28,18 @@ export default function LoginPage() {
     setErrors({});
     setLoading(true);
 
-    await new Promise(r => setTimeout(r, 1200));
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      sessionStorage.setItem('admin_auth', 'true');
+    if (error) {
+      setLoading(false);
+      toast.error('Login Failed', { description: error.message });
+      setErrors({ password: error.message });
+    } else {
       toast.success('Welcome back, Admin!', { description: 'Redirecting to dashboard…' });
       navigate('/admin');
-    } else {
-      setLoading(false);
-      toast.error('Invalid credentials', { description: 'Please check your email and password.' });
-      setErrors({ password: 'Invalid email or password' });
     }
   };
 
@@ -120,12 +119,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo credentials hint */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
-            <p className="text-amber-700 text-xs font-semibold mb-1">Demo Credentials</p>
-            <p className="text-amber-600 text-xs">Email: {DEMO_EMAIL}</p>
-            <p className="text-amber-600 text-xs">Password: {DEMO_PASSWORD}</p>
-          </div>
+          {/* Demo credentials hint removed */}
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {/* Email */}

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router';
+import { supabase } from '../../lib/supabase';
+import { Session } from '@supabase/supabase-js';
 import { AdminLayout } from './components/AdminLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -12,8 +14,33 @@ import ServiceAreasPage from './pages/ServiceAreasPage';
 import ProfileSettingsPage from './pages/ProfileSettingsPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const isAuth = sessionStorage.getItem('admin_auth') === 'true';
-  if (!isAuth) return <Navigate to="/admin/login" replace />;
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="w-8 h-8 border-4 border-[#0B2E6B]/30 border-t-[#0B2E6B] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) return <Navigate to="/admin/login" replace />;
   return <>{children}</>;
 }
 
