@@ -1121,14 +1121,21 @@ function PublicSite() {
 }
 
 const ProjectCard = ({ images, type, location, alt }: { images: string[], type: string, location: string, alt: string }) => {
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useState(images.length > 1 ? 1 : 0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clone the last image to the start, and the first image to the end for infinite sliding
+  const displayImages = images.length > 1 
+    ? [images[images.length - 1], ...images, images[0]] 
+    : images;
 
   const startTimer = () => {
     if (images.length > 1) {
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        setIdx((prev) => (prev + 1) % images.length);
+        setIsTransitioning(true);
+        setIdx((prev) => prev + 1);
       }, 3000); // 3 seconds per slide
     }
   };
@@ -1140,31 +1147,59 @@ const ProjectCard = ({ images, type, location, alt }: { images: string[], type: 
     };
   }, [images.length]);
 
+  const handleTransitionEnd = () => {
+    if (images.length <= 1) return;
+    
+    // If we've reached the clone of the first image (at the very end)
+    if (idx === displayImages.length - 1) {
+      setIsTransitioning(false); // disable transition
+      setIdx(1); // snap silently to the real first image
+    } 
+    // If we've reached the clone of the last image (at the very beginning)
+    else if (idx === 0) {
+      setIsTransitioning(false); // disable transition
+      setIdx(displayImages.length - 2); // snap silently to the real last image
+    }
+  };
+
   const next = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    setIdx((prev) => (prev + 1) % images.length);
+    if (images.length <= 1 || idx === displayImages.length - 1) return;
+    setIsTransitioning(true);
+    setIdx((prev) => prev + 1);
     startTimer();
   };
   
   const prev = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    setIdx((prev) => (prev - 1 + images.length) % images.length);
+    if (images.length <= 1 || idx === 0) return;
+    setIsTransitioning(true);
+    setIdx((prev) => prev - 1);
     startTimer();
   };
+
+  // Map the internal idx back to the real image index for the dot indicators
+  let realIdx = 0;
+  if (images.length > 1) {
+    if (idx === 0) realIdx = images.length - 1;
+    else if (idx === displayImages.length - 1) realIdx = 0;
+    else realIdx = idx - 1;
+  }
 
   return (
     <div className="group rounded-2xl overflow-hidden shadow-sm border border-border hover:shadow-xl transition-all bg-white">
       <div className="relative overflow-hidden h-52 bg-blue-100 group/slider">
         <div 
-          className="flex w-full h-full transition-transform duration-500 ease-out"
+          className={`flex w-full h-full ${isTransitioning ? 'transition-transform duration-500 ease-out' : ''}`}
           style={{ transform: `translateX(-${idx * 100}%)` }}
+          onTransitionEnd={handleTransitionEnd}
         >
-          {images.map((img, i) => (
+          {displayImages.map((img, i) => (
             <img
               key={i}
               src={img}
               alt={alt}
-              className="w-full h-full object-cover flex-shrink-0 group-hover/slider:scale-105 transition-transform duration-700"
+              className="w-full h-full object-cover flex-shrink-0"
             />
           ))}
         </div>
@@ -1189,17 +1224,17 @@ const ProjectCard = ({ images, type, location, alt }: { images: string[], type: 
             
             <div className="absolute top-3 right-3 flex gap-1 z-10 pointer-events-none">
               {images.map((_, i) => (
-                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white scale-125 shadow-sm' : 'bg-white/40'}`} />
+                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === realIdx ? 'bg-white scale-125 shadow-sm' : 'bg-white/40'}`} />
               ))}
             </div>
           </>
         )}
 
-        <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
-          <span className="inline-block bg-[#D72626] text-white text-xs font-bold px-3 py-1 rounded-full mb-1">
+        <div className="absolute bottom-4 left-4 right-4 pointer-events-none z-10">
+          <span className="inline-block bg-[#D72626] text-white text-xs font-bold px-3 py-1 rounded-full mb-1 shadow-sm">
             {type}
           </span>
-          <div className="flex items-center gap-1 text-white text-sm font-medium">
+          <div className="flex items-center gap-1 text-white text-sm font-medium shadow-sm">
             <MapPin className="w-3.5 h-3.5 text-[#F4B400]" /> {location}, Assam
           </div>
         </div>
