@@ -1,8 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router";
 import { Toaster } from "sonner";
-import { quoteRequestService, homepageSettingsService, testimonialService } from "../lib/supabaseService";
-import type { HomepageSettings, Testimonial } from "../lib/supabaseService";
+import { quoteRequestService, homepageSettingsService, testimonialService, projectService } from "../lib/supabaseService";
+import type { HomepageSettings, Testimonial, Project } from "../lib/supabaseService";
 import {
   Phone,
   MessageCircle,
@@ -185,6 +185,7 @@ function PublicSite() {
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [liveTestimonials, setLiveTestimonials] = useState<Testimonial[]>([]);
+  const [liveProjects, setLiveProjects] = useState<Project[]>([]);
 
   const onSubmitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -248,13 +249,17 @@ function PublicSite() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [settings, testimonials] = await Promise.allSettled([
+        const [settings, testimonials, projects] = await Promise.allSettled([
           homepageSettingsService.get(),
           testimonialService.getAll(),
+          projectService.getAll(),
         ]);
         if (settings.status === 'fulfilled') setHomepageSettings(settings.value);
         if (testimonials.status === 'fulfilled') {
           setLiveTestimonials(testimonials.value.filter(t => t.status === 'Published').slice(0, 6));
+        }
+        if (projects.status === 'fulfilled') {
+          setLiveProjects(projects.value.slice(0, 6));
         }
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -709,9 +714,14 @@ function PublicSite() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {PROJECTS.map(({ img, type, location, alt }) => (
+            {(liveProjects.length > 0 ? liveProjects.map(p => ({
+              img: p.images && p.images.length > 0 ? p.images[0] : 'https://images.unsplash.com/photo-1763665814538-8ba04597286c?w=800&h=600&fit=crop&auto=format',
+              type: p.serviceType,
+              location: p.location,
+              alt: p.title
+            })) : PROJECTS).map(({ img, type, location, alt }) => (
               <div
-                key={`${type}-${location}`}
+                key={`${type}-${location}-${alt}`}
                 className="group rounded-2xl overflow-hidden shadow-sm border border-border hover:shadow-xl transition-all bg-white"
               >
                 <div className="relative overflow-hidden h-52 bg-blue-100">
