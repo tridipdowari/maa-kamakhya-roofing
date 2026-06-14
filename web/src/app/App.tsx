@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router";
 import { Toaster } from "sonner";
-import AdminApp from "./admin/AdminApp";
 import {
   Phone,
   MessageCircle,
@@ -27,6 +26,8 @@ import {
   Users,
   ThumbsUp,
 } from "lucide-react";
+
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 
 const NAV_ITEMS = ["Home", "About", "Services", "Projects", "Contact"];
 
@@ -1057,7 +1058,11 @@ export default function App() {
     <>
       <Toaster richColors position="top-right" closeButton />
       <Routes>
-        <Route path="/admin/*" element={<AdminApp />} />
+        <Route path="/admin/*" element={
+          <Suspense fallback={<div>Loading admin...</div>}>
+            <AdminApp />
+          </Suspense>
+        } />
         <Route path="/*" element={<PublicSite />} />
       </Routes>
     </>
