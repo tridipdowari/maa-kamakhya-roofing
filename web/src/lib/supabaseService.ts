@@ -1,5 +1,26 @@
 import { supabase } from './supabase';
 
+// Helper functions to convert between snake_case and camelCase
+const toSnakeCase = (obj: Record<string, any>): Record<string, any> => {
+  if (!obj || typeof obj !== 'object') return obj;
+
+  return Object.keys(obj).reduce((acc, key) => {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    acc[snakeKey] = obj[key];
+    return acc;
+  }, {} as Record<string, any>);
+};
+
+const toCamelCase = (obj: Record<string, any>): Record<string, any> => {
+  if (!obj || typeof obj !== 'object') return obj;
+
+  return Object.keys(obj).reduce((acc, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    acc[camelKey] = obj[key];
+    return acc;
+  }, {} as Record<string, any>);
+};
+
 // Types
 export type QuoteRequest = {
   id: string;
@@ -87,33 +108,33 @@ export const quoteRequestService = {
     const { data, error } = await supabase
       .from('quote_requests')
       .select('*')
-      .order('dateSubmitted', { ascending: false });
+      .order('date_submitted', { ascending: false });
 
     if (error) throw error;
-    return data as QuoteRequest[];
+    return (data || []).map(toCamelCase) as QuoteRequest[];
   },
 
   create: async (quoteRequest: Omit<QuoteRequest, 'id'>) => {
     const { data, error } = await supabase
       .from('quote_requests')
-      .insert([quoteRequest])
+      .insert([toSnakeCase(quoteRequest)])
       .select()
       .single();
 
     if (error) throw error;
-    return data as QuoteRequest;
+    return toCamelCase(data) as QuoteRequest;
   },
 
   update: async (id: string, quoteRequest: Partial<QuoteRequest>) => {
     const { data, error } = await supabase
       .from('quote_requests')
-      .update(quoteRequest)
+      .update(toSnakeCase(quoteRequest))
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as QuoteRequest;
+    return toCamelCase(data) as QuoteRequest;
   },
 
   delete: async (id: string) => {
@@ -132,33 +153,33 @@ export const projectService = {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .order('completionDate', { ascending: false });
+      .order('completion_date', { ascending: false });
 
     if (error) throw error;
-    return data as Project[];
+    return (data || []).map(toCamelCase) as Project[];
   },
 
   create: async (project: Omit<Project, 'id'>) => {
     const { data, error } = await supabase
       .from('projects')
-      .insert([project])
+      .insert([toSnakeCase(project)])
       .select()
       .single();
 
     if (error) throw error;
-    return data as Project;
+    return toCamelCase(data) as Project;
   },
 
   update: async (id: string, project: Partial<Project>) => {
     const { data, error } = await supabase
       .from('projects')
-      .update(project)
+      .update(toSnakeCase(project))
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Project;
+    return toCamelCase(data) as Project;
   },
 
   delete: async (id: string) => {
@@ -177,33 +198,33 @@ export const testimonialService = {
     const { data, error } = await supabase
       .from('testimonials')
       .select('*')
-      .order('dateAdded', { ascending: false });
+      .order('date_added', { ascending: false });
 
     if (error) throw error;
-    return data as Testimonial[];
+    return (data || []).map(toCamelCase) as Testimonial[];
   },
 
   create: async (testimonial: Omit<Testimonial, 'id'>) => {
     const { data, error } = await supabase
       .from('testimonials')
-      .insert([testimonial])
+      .insert([toSnakeCase(testimonial)])
       .select()
       .single();
 
     if (error) throw error;
-    return data as Testimonial;
+    return toCamelCase(data) as Testimonial;
   },
 
   update: async (id: string, testimonial: Partial<Testimonial>) => {
     const { data, error } = await supabase
       .from('testimonials')
-      .update(testimonial)
+      .update(toSnakeCase(testimonial))
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Testimonial;
+    return toCamelCase(data) as Testimonial;
   },
 
   delete: async (id: string) => {
@@ -225,30 +246,30 @@ export const serviceAreaService = {
       .order('name');
 
     if (error) throw error;
-    return data as ServiceArea[];
+    return (data || []).map(toCamelCase) as ServiceArea[];
   },
 
   create: async (serviceArea: Omit<ServiceArea, 'id'>) => {
     const { data, error } = await supabase
       .from('service_areas')
-      .insert([serviceArea])
+      .insert([toSnakeCase(serviceArea)])
       .select()
       .single();
 
     if (error) throw error;
-    return data as ServiceArea;
+    return toCamelCase(data) as ServiceArea;
   },
 
   update: async (id: string, serviceArea: Partial<ServiceArea>) => {
     const { data, error } = await supabase
       .from('service_areas')
-      .update(serviceArea)
+      .update(toSnakeCase(serviceArea))
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as ServiceArea;
+    return toCamelCase(data) as ServiceArea;
   },
 
   delete: async (id: string) => {
@@ -273,18 +294,18 @@ export const contactInfoService = {
       .single();
 
     if (error) throw error;
-    return data as ContactInfo;
+    return toCamelCase(data) as ContactInfo;
   },
 
   update: async (contactInfo: Partial<ContactInfo>) => {
     const { data, error } = await supabase
       .from('contact_info')
-      .upsert({ id: 1, ...contactInfo })
+      .upsert({ id: 1, ...toSnakeCase(contactInfo) })
       .select()
       .single();
 
     if (error) throw error;
-    return data as ContactInfo;
+    return toCamelCase(data) as ContactInfo;
   }
 };
 
@@ -297,18 +318,18 @@ export const homepageSettingsService = {
       .single();
 
     if (error) throw error;
-    return data as HomepageSettings;
+    return toCamelCase(data) as HomepageSettings;
   },
 
   update: async (homepageSettings: Partial<HomepageSettings>) => {
     const { data, error } = await supabase
       .from('homepage_settings')
-      .upsert({ id: 1, ...homepageSettings })
+      .upsert({ id: 1, ...toSnakeCase(homepageSettings) })
       .select()
       .single();
 
     if (error) throw error;
-    return data as HomepageSettings;
+    return toCamelCase(data) as HomepageSettings;
   }
 };
 
@@ -321,17 +342,17 @@ export const adminProfileService = {
       .single();
 
     if (error) throw error;
-    return data as AdminProfile;
+    return toCamelCase(data) as AdminProfile;
   },
 
   update: async (adminProfile: Partial<AdminProfile>) => {
     const { data, error } = await supabase
       .from('admin_profiles')
-      .upsert({ id: 1, ...adminProfile })
+      .upsert({ id: 1, ...toSnakeCase(adminProfile) })
       .select()
       .single();
 
     if (error) throw error;
-    return data as AdminProfile;
+    return toCamelCase(data) as AdminProfile;
   }
 };

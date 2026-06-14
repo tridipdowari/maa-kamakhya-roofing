@@ -1,13 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
-import { mockHomepageSettings } from '../data/mockData';
+import { homepageSettingsService } from '@/lib/supabaseService';
 import type { HomepageSettings } from '../types';
 
 export default function HomepageSettingsPage() {
-  const [settings, setSettings] = useState<HomepageSettings>(mockHomepageSettings);
+  const [settings, setSettings] = useState<HomepageSettings | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await homepageSettingsService.get();
+        setSettings(data);
+      } catch (error) {
+        console.error('Failed to fetch homepage settings:', error);
+        toast.error('Failed to load homepage settings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   const set = (key: keyof HomepageSettings) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -16,10 +33,17 @@ export default function HomepageSettingsPage() {
   const inputClass = 'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0B2E6B]/20 focus:border-[#0B2E6B] transition-all bg-white';
 
   const handleSave = async () => {
+    if (!settings) return;
     setSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSaving(false);
-    toast.success('Homepage settings saved successfully');
+    try {
+      await homepageSettingsService.update(settings);
+      toast.success('Homepage settings saved successfully');
+    } catch (error) {
+      console.error('Failed to save homepage settings:', error);
+      toast.error('Failed to save homepage settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updatePoint = (i: number, field: 'title' | 'description', value: string) => {
@@ -44,6 +68,14 @@ export default function HomepageSettingsPage() {
       whyChooseUsPoints: s.whyChooseUsPoints.filter((_, idx) => idx !== i),
     }));
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!settings) {
+    return <div className="min-h-screen flex items-center justify-center">Error loading settings</div>;
+  }
 
   return (
     <div>
