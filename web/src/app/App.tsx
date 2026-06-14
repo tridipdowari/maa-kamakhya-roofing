@@ -1,6 +1,8 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router";
 import { Toaster } from "sonner";
+import { quoteRequestService, homepageSettingsService } from "../lib/supabaseService";
+import type { HomepageSettings } from "../lib/supabaseService";
 import {
   Phone,
   MessageCircle,
@@ -180,11 +182,13 @@ function PublicSite() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [formStatus, setFormStatus] = useState("");
+  const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const onSubmitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormStatus("Sending...");
-    
+
     const formElement = event.currentTarget;
     const formData = new FormData(formElement);
     formData.append("access_key", import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "YOUR_ACCESS_KEY_HERE");
@@ -193,7 +197,8 @@ function PublicSite() {
     const json = JSON.stringify(object);
 
     try {
-      const response = await fetch("https://api.web3forms.com/submit", {
+      // Submit to Web3Forms (for email notification)
+      const web3formsResponse = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -201,16 +206,34 @@ function PublicSite() {
         },
         body: json
       });
-      const data = await response.json();
-      if (data.success) {
-        setFormStatus("Success! Your quote request has been sent.");
+      const web3formsData = await web3formsResponse.json();
+
+      // Also submit to Supabase for storage in admin dashboard
+      const now = new Date();
+      const dateSubmitted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const quoteRequestData = {
+        customerName: object.name.trim(),
+        phone: object.phone.trim(),
+        email: object.email.toLowerCase().trim(),
+        serviceNeeded: (object.service || "Other").trim(),
+        location: object.location.trim(),
+        message: (object.message || "").trim(),
+        dateSubmitted,
+        status: "Pending" as const
+      };
+
+      await quoteRequestService.create(quoteRequestData);
+
+      if (web3formsData.success) {
+        setFormStatus("Success! Your quote request has been sent and saved.");
         formElement.reset();
       } else {
-        setFormStatus("Something went wrong. Please try again.");
+        setFormStatus("Success! Your quote request has been saved successfully. We'll get back to you shortly!");
+        formElement.reset();
       }
     } catch (error: any) {
       console.error("Submission Error:", error);
-      setFormStatus(`Error connecting to server: ${error.message}`);
+      setFormStatus("There was an issue submitting your request. Please try again or contact us directly.");
     }
   };
 
@@ -218,6 +241,22 @@ function PublicSite() {
     const onScroll = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const fetchHomepageSettings = async () => {
+      try {
+        setLoading(true);
+        const settings = await homepageSettingsService.get();
+        setHomepageSettings(settings);
+      } catch (error) {
+        console.error("Failed to fetch homepage settings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHomepageSettings();
   }, []);
 
   const phoneNumber = "+916370268346";
@@ -272,25 +311,6 @@ function PublicSite() {
             ))}
           </nav>
 
-          <div className="hidden lg:flex items-center gap-3">
-            <a
-              href={callHref}
-              className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg transition-all ${
-                scrolled
-                  ? "text-[#0B2E6B] border border-[#0B2E6B] hover:bg-[#0B2E6B] hover:text-white"
-                  : "text-white border border-white/40 hover:border-white"
-              }`}
-            >
-              <Phone className="w-4 h-4" /> Call Now
-            </a>
-            <a
-              href="#contact"
-              className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg bg-[#D72626] text-white hover:bg-[#b91c1c] transition-all shadow-md"
-            >
-              Get Free Quote
-            </a>
-          </div>
-
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -319,21 +339,8 @@ function PublicSite() {
                   {item}
                 </a>
               ))}
-              <div className="flex gap-3 pt-3 border-t border-gray-100 mt-2">
-                <a
-                  href={callHref}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-[#0B2E6B] text-[#0B2E6B] font-semibold text-sm"
-                >
-                  <Phone className="w-4 h-4" /> Call Now
-                </a>
-                <a
-                  href="#contact"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-[#D72626] text-white font-semibold text-sm"
-                >
-                  Free Quote
-                </a>
-              </div>
+              {/* Mobile nav contains only navigation links - CTAs are in hero section */}
+
             </div>
           </div>
         )}
@@ -395,38 +402,80 @@ function PublicSite() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-20 md:pb-28 grid md:grid-cols-2 gap-12 items-center w-full">
           {/* Left content */}
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 bg-[#F4B400]/15 border border-[#F4B400]/30 rounded-full px-4 py-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#F4B400] animate-pulse" />
-              <span className="text-[#F4B400] text-xs font-semibold tracking-wider uppercase">
-                Est. 2015 · Assam, India
-              </span>
-            </div>
+            {homepageSettings && !loading && (
+              <>
+                <div className="inline-flex items-center gap-2 bg-[#F4B400]/15 border border-[#F4B400]/30 rounded-full px-4 py-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#F4B400] animate-pulse" />
+                  <span className="text-[#F4B400] text-xs font-semibold tracking-wider uppercase">
+                    Est. {homepageSettings.yearsExperience} · Assam, India
+                  </span>
+                </div>
 
-            <h1 className="font-['Poppins',sans-serif] font-black text-4xl sm:text-5xl lg:text-6xl text-white leading-[1.1]">
-              Strong Roofs.
-              <br />
-              <span className="text-[#F4B400]">Stronger Trust.</span>
-            </h1>
+                <h1 className="font-['Poppins',sans-serif] font-black text-4xl sm:text-5xl lg:text-6xl text-white leading-[1.1]">
+                  {(homepageSettings as HomepageSettings).heroTitle}
+                </h1>
+                <p className="mt-2 text-[#F4B400] text-lg sm:text-xl">
+                  {(homepageSettings as HomepageSettings).heroSubtitle}
+                </p>
 
-            <p className="text-blue-200 text-lg sm:text-xl leading-relaxed max-w-lg">
-              Professional Roofing Solutions for Homes, Warehouses &amp;
-              Commercial Buildings across Assam.
-            </p>
+                <p className="text-blue-200 text-lg sm:text-xl leading-relaxed max-w-lg">
+                  Professional Roofing Solutions for Homes, Warehouses &amp;
+                  Commercial Buildings across Assam.
+                </p>
 
-            <p className="text-blue-100/80 text-sm leading-relaxed max-w-md">
-              With{" "}
-              <strong className="text-white">11+ years of experience</strong>{" "}
-              and{" "}
-              <strong className="text-white">300+ completed projects</strong>,
-              we deliver roofing you can trust through every monsoon.
-            </p>
+                <p className="text-blue-100/80 text-sm leading-relaxed max-w-md">
+                  With{" "}
+                  <strong className="text-white">{(homepageSettings as HomepageSettings).yearsExperience}+ years of experience</strong>{" "}
+                  and{" "}
+                  <strong className="text-white">{(homepageSettings as HomepageSettings).projectsCompleted}+ completed projects</strong>,
+                  we deliver roofing you can trust through every monsoon.
+                </p>
+              </>
+            )}
+
+            {!homepageSettings && !loading && (
+              <>
+                <div className="inline-flex items-center gap-2 bg-[#F4B400]/15 border border-[#F4B400]/30 rounded-full px-4 py-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#F4B400] animate-pulse" />
+                  <span className="text-[#F4B400] text-xs font-semibold tracking-wider uppercase">
+                    Est. 2015 · Assam, India
+                  </span>
+                </div>
+
+                <h1 className="font-['Poppins',sans-serif] font-black text-4xl sm:text-5xl lg:text-6xl text-white leading-[1.1]">
+                  Strong Roofs.
+                </h1>
+                <p className="mt-2 text-[#F4B400] text-lg sm:text-xl">
+                  Stronger Trust.
+                </p>
+
+                <p className="text-blue-200 text-lg sm:text-xl leading-relaxed max-w-lg">
+                  Professional Roofing Solutions for Homes, Warehouses &amp;
+                  Commercial Buildings across Assam.
+                </p>
+
+                <p className="text-blue-100/80 text-sm leading-relaxed max-w-md">
+                  With{" "}
+                  <strong className="text-white">11+ years of experience</strong>{" "}
+                  and{" "}
+                  <strong className="text-white">300+ completed projects</strong>,
+                  we deliver roofing you can trust through every monsoon.
+                </p>
+              </>
+            )}
+
+            {loading && (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-12 h-12 border-2 border-[#F4B400]/30 border-t-[#F4B400] rounded-full animate-spin"></div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-3 pt-2">
               <a
                 href="#contact"
                 className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#D72626] text-white font-semibold text-base hover:bg-[#b91c1c] transition-all shadow-lg shadow-red-900/30 active:scale-95"
               >
-                Get Free Quote <ArrowRight className="w-4 h-4" />
+                {homepageSettings ? homepageSettings.ctaButtonText : "Get Free Quote"} <ArrowRight className="w-4 h-4" />
               </a>
               <a
                 href={callHref}
@@ -476,28 +525,28 @@ function PublicSite() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[
               {
-                value: "11+",
+                value: homepageSettings ? `${homepageSettings.yearsExperience}+` : "11+",
                 label: "Years Experience",
                 icon: Award,
                 color: "text-[#0B2E6B]",
                 bg: "bg-blue-50",
               },
               {
-                value: "300+",
+                value: homepageSettings ? `${homepageSettings.projectsCompleted}+` : "300+",
                 label: "Projects Completed",
                 icon: CheckCircle2,
                 color: "text-[#D72626]",
                 bg: "bg-red-50",
               },
               {
-                value: "50+",
+                value: homepageSettings ? `${homepageSettings.skilledProfessionals}+` : "50+",
                 label: "Skilled Professionals",
                 icon: Users,
                 color: "text-[#F4B400]",
                 bg: "bg-amber-50",
               },
               {
-                value: "100%",
+                value: homepageSettings ? `${homepageSettings.customerSatisfaction}%` : "100%",
                 label: "Customer Satisfaction",
                 icon: ThumbsUp,
                 color: "text-[#0B2E6B]",
@@ -577,7 +626,7 @@ function PublicSite() {
                 href="#contact"
                 className="mt-6 inline-flex items-center gap-2 px-5 py-3 bg-[#F4B400] text-[#0B2E6B] rounded-xl font-bold text-sm hover:bg-yellow-400 transition-colors"
               >
-                Get Free Quote <ArrowRight className="w-4 h-4" />
+                {homepageSettings ? homepageSettings.ctaButtonText : "Get Free Quote"} <ArrowRight className="w-4 h-4" />
               </a>
             </div>
           </div>
@@ -611,20 +660,42 @@ function PublicSite() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-colors group"
-              >
-                <div className="w-12 h-12 bg-[#F4B400] rounded-xl flex items-center justify-center mb-4">
-                  <Icon className="w-6 h-6 text-[#0B2E6B]" />
-                </div>
-                <h3 className="font-['Poppins',sans-serif] font-bold text-white mb-2">
-                  {title}
-                </h3>
-                <p className="text-blue-200 text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
+            {homepageSettings && homepageSettings.whyChooseUsPoints && homepageSettings.whyChooseUsPoints.length > 0 ? (
+              <>
+                {homepageSettings.whyChooseUsPoints.map(({ title, description }, index) => (
+                  <div
+                    key={index}
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-colors group"
+                  >
+                    <div className="w-12 h-12 bg-[#F4B400] rounded-xl flex items-center justify-center mb-4">
+                      {/* Use a default icon or rotate through some icons */}
+                      <Shield className="w-6 h-6 text-[#0B2E6B]" />
+                    </div>
+                    <h3 className="font-['Poppins',sans-serif] font-bold text-white mb-2">
+                      {title}
+                    </h3>
+                    <p className="text-blue-200 text-sm leading-relaxed">{description}</p>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                {FEATURES.map(({ icon: Icon, title, desc }) => (
+                  <div
+                    key={title}
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-colors group"
+                  >
+                    <div className="w-12 h-12 bg-[#F4B400] rounded-xl flex items-center justify-center mb-4">
+                      <Icon className="w-6 h-6 text-[#0B2E6B]" />
+                    </div>
+                    <h3 className="font-['Poppins',sans-serif] font-bold text-white mb-2">
+                      {title}
+                    </h3>
+                    <p className="text-blue-200 text-sm leading-relaxed">{desc}</p>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -889,7 +960,7 @@ function PublicSite() {
                   {formStatus === "Sending..." ? "Sending..." : "Get My Free Quote"} <ArrowRight className="w-4 h-4" />
                 </button>
                 {formStatus && formStatus !== "Sending..." && (
-                  <p className={`text-sm text-center mt-3 font-medium ${formStatus.includes("Success") ? "text-green-600" : "text-red-600"}`}>
+                  <p role="alert" className={`text-sm text-center mt-3 font-medium ${formStatus.includes("Success") ? "text-green-600" : "text-red-600"}`}>
                     {formStatus}
                   </p>
                 )}

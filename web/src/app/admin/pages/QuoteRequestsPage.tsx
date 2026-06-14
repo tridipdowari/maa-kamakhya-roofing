@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Eye, CheckCheck, Trash2, Filter, FileText } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
-import { mockQuotes } from '../data/mockData';
 import type { QuoteRequest, QuoteStatus } from '../types';
+import { quoteRequestService } from '@/lib/supabaseService';
 
 const STATUS_COLORS: Record<QuoteStatus, string> = {
   Pending: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -17,12 +17,32 @@ const STATUS_COLORS: Record<QuoteStatus, string> = {
 const PAGE_SIZE = 6;
 
 export default function QuoteRequestsPage() {
-  const [quotes, setQuotes] = useState<QuoteRequest[]>(mockQuotes);
+  const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | 'All'>('All');
   const [page, setPage] = useState(1);
   const [selectedQuote, setSelectedQuote] = useState<QuoteRequest | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      try {
+        setLoading(true);
+        const data = await quoteRequestService.getAll();
+        setQuotes(data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch quotes:', err);
+        setError('Failed to load quote requests');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuotes();
+  }, []);
 
   const filtered = quotes.filter(q => {
     const matchSearch =
@@ -36,17 +56,47 @@ export default function QuoteRequestsPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const markContacted = (id: string) => {
-    setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'Contacted' } : q));
-    toast.success('Quote marked as Contacted');
+  const markContacted = async (id: string) => {
+    try {
+      await quoteRequestService.update(id, { status: 'Contacted' });
+      // Update the local state optimistically
+      setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'Contacted' } : q));
+      toast.success('Quote marked as Contacted');
+    } catch (err) {
+      console.error('Failed to mark quote as contacted:', err);
+      toast.error('Failed to update quote status');
+    }
   };
 
-  const deleteQuote = (id: string) => {
-    setQuotes(prev => prev.filter(q => q.id !== id));
-    setDeleteId(null);
-    if (selectedQuote?.id === id) setSelectedQuote(null);
-    toast.success('Quote request deleted');
+  const deleteQuote = async (id: string) => {
+    try {
+      await quoteRequestService.delete(id);
+      // Remove from local state
+      setQuotes(prev => prev.filter(q => q.id !== id));
+      setDeleteId(null);
+      if (selectedQuote?.id === id) setSelectedQuote(null);
+      toast.success('Quote request deleted');
+    } catch (err) {
+      console.error('Failed to delete quote:', err);
+      toast.error('Failed to delete quote request');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="w-8 h-8 border-4 border-[#0B2E6B]/30 border-t-[#0B2E6B] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -70,7 +120,7 @@ export default function QuoteRequestsPage() {
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-400 shrink-0" />
           {(['All', 'Pending', 'Contacted', 'Closed'] as const).map(s => (
-            <button
+            <button type="button"
               key={s}
               onClick={() => { setStatusFilter(s); setPage(1); }}
               className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
@@ -129,7 +179,7 @@ export default function QuoteRequestsPage() {
                     </td>
                     <td className="px-6 py-3.5">
                       <div className="flex items-center gap-1.5 justify-end">
-                        <button
+                        <button type="button"
                           onClick={() => setSelectedQuote(q)}
                           title="View details"
                           className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-[#0B2E6B] hover:bg-blue-100 transition-colors"
@@ -137,7 +187,7 @@ export default function QuoteRequestsPage() {
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         {q.status === 'Pending' && (
-                          <button
+                          <button type="button"
                             onClick={() => markContacted(q.id)}
                             title="Mark as Contacted"
                             className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
@@ -145,7 +195,7 @@ export default function QuoteRequestsPage() {
                             <CheckCheck className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button
+                        <button type="button"
                           onClick={() => setDeleteId(q.id)}
                           title="Delete"
                           className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
@@ -239,21 +289,21 @@ export default function QuoteRequestsPage() {
 
                 <div className="flex gap-3">
                   {selectedQuote.status === 'Pending' && (
-                    <button
+                    <button type="button"
                       onClick={() => { markContacted(selectedQuote.id); setSelectedQuote(null); }}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#0B2E6B] text-white text-sm font-bold hover:bg-[#0a2660] transition-colors"
                     >
                       <CheckCheck className="w-4 h-4" /> Mark Contacted
                     </button>
                   )}
-                  <button
+                  <button type="button"
                     onClick={() => { setDeleteId(selectedQuote.id); setSelectedQuote(null); }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm font-bold hover:bg-red-100 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" /> Delete
                   </button>
                   <Dialog.Close asChild>
-                    <button className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200 transition-colors">
+                    <button type="button" className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200 transition-colors">
                       Close
                     </button>
                   </Dialog.Close>
