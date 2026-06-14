@@ -9,9 +9,9 @@ import {
 } from 'recharts';
 import { StatCard } from '../components/StatCard';
 import { CardSkeleton, TableSkeleton } from '../components/LoadingSkeleton';
-import {
-  mockQuotes, mockProjects, mockTestimonials, quoteStatusData
-} from '../data/mockData';
+import { quoteRequestService } from '@/lib/supabaseService';
+import { testimonialService } from '@/lib/supabaseService';
+import { projectService } from '@/lib/supabaseService';
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-700',
@@ -22,17 +22,49 @@ const STATUS_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [quotes, setQuotes] = useState<Array<any>>([]);
+  const [testimonials, setTestimonials] = useState<Array<any>>([]);
+  const [projects, setProjects] = useState<Array<any>>([]);
+  const [lastLogin, setLastLogin] = useState<string>('');
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(t);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [quotesData, testimonialsData, projectsData] = await Promise.all([
+          quoteRequestService.getAll(),
+          testimonialService.getAll(),
+          projectService.getAll()
+        ]);
+        setQuotes(quotesData);
+        setTestimonials(testimonialsData);
+        setProjects(projectsData);
+        // For now, we'll use a static last login - in a real app this would come from auth
+        setLastLogin(new Date(2026, 5, 13, 8, 30).toLocaleString('en-IN', {
+          dateStyle: 'medium', timeStyle: 'short',
+        }));
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const pending = mockQuotes.filter(q => q.status === 'Pending').length;
-  const published = mockTestimonials.filter(t => t.status === 'Published').length;
-  const lastLogin = new Date(2026, 5, 13, 8, 30).toLocaleString('en-IN', {
-    dateStyle: 'medium', timeStyle: 'short',
-  });
+  const pending = quotes.filter((q: any) => q.status === 'Pending').length;
+  const published = testimonials.filter((t: any) => t.status === 'Published').length;
+
+  // Create quote status data for the chart (simplified version)
+  const quoteStatusData = [
+    { month: 'Jan', pending: 4, contacted: 6, closed: 8 },
+    { month: 'Feb', pending: 3, contacted: 7, closed: 9 },
+    { month: 'Mar', pending: 6, contacted: 5, closed: 11 },
+    { month: 'Apr', pending: 8, contacted: 9, closed: 7 },
+    { month: 'May', pending: 5, contacted: 11, closed: 12 },
+    { month: 'Jun', pending: 3, contacted: 4, closed: 5 },
+  ];
 
   return (
     <div>
@@ -55,7 +87,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
           <StatCard
             title="Total Quotes"
-            value={mockQuotes.length}
+            value={quotes.length}
             icon={FileText}
             iconBg="bg-blue-50"
             iconColor="text-[#0B2E6B]"
@@ -75,7 +107,7 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Projects"
-            value={mockProjects.length}
+            value={projects.length}
             icon={FolderOpen}
             iconBg="bg-indigo-50"
             iconColor="text-indigo-600"
@@ -105,7 +137,7 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Last Login"
-            value="Today"
+            value={lastLogin}
             icon={Calendar}
             iconBg="bg-gray-50"
             iconColor="text-gray-500"
@@ -164,7 +196,7 @@ export default function DashboardPage() {
               { label: 'Update Contact Info', icon: Phone, path: '/admin/contact', color: 'bg-emerald-50 text-emerald-600' },
               { label: 'Edit Homepage', icon: Globe, path: '/admin/homepage', color: 'bg-blue-50 text-[#0B2E6B]' },
             ].map(({ label, icon: Icon, path, color }) => (
-              <button
+              <button type="button"
                 key={path}
                 onClick={() => navigate(path)}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group text-left"
@@ -187,7 +219,7 @@ export default function DashboardPage() {
             <h2 className="font-bold text-gray-900">Recent Quote Requests</h2>
             <p className="text-xs text-gray-400 mt-0.5">Last 5 submissions</p>
           </div>
-          <button
+          <button type="button"
             onClick={() => navigate('/admin/quotes')}
             className="flex items-center gap-1.5 text-xs font-semibold text-[#0B2E6B] hover:underline"
           >
@@ -209,7 +241,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockQuotes.slice(0, 5).map((q, i) => (
+                {quotes.slice(0, 5).map((q, i) => (
                   <tr
                     key={q.id}
                     className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -246,7 +278,7 @@ export default function DashboardPage() {
             <h2 className="font-bold text-gray-900">Recent Projects</h2>
             <p className="text-xs text-gray-400 mt-0.5">Latest 3 added</p>
           </div>
-          <button
+          <button type="button"
             onClick={() => navigate('/admin/projects')}
             className="flex items-center gap-1.5 text-xs font-semibold text-[#0B2E6B] hover:underline"
           >
@@ -254,7 +286,7 @@ export default function DashboardPage() {
           </button>
         </div>
         <div className="grid sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-          {mockProjects.slice(0, 3).map(p => (
+          {projects.slice(0, 3).map(p => (
             <div key={p.id} className="p-5 group hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate('/admin/projects')}>
               <div className="relative rounded-xl overflow-hidden h-32 mb-3 bg-blue-50">
                 <img src={p.images[0]} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
