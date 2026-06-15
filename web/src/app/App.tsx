@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router";
 import { Toaster } from "sonner";
-import { quoteRequestService, homepageSettingsService, testimonialService, projectService, serviceAreaService } from "../lib/supabaseService";
-import type { HomepageSettings, Testimonial, Project, ServiceArea } from "../lib/supabaseService";
+import { quoteRequestService, homepageSettingsService, testimonialService, projectService, serviceAreaService, contactInfoService } from "../lib/supabaseService";
+import type { HomepageSettings, Testimonial, Project, ServiceArea, ContactInfo } from "../lib/supabaseService";
 import {
   Phone,
   MessageCircle,
@@ -218,6 +218,7 @@ function PublicSite() {
   const [liveTestimonials, setLiveTestimonials] = useState<Testimonial[]>([]);
   const [liveProjects, setLiveProjects] = useState<Project[]>([]);
   const [liveAreas, setLiveAreas] = useState<ServiceArea[]>([]);
+  const [liveContactInfo, setLiveContactInfo] = useState<ContactInfo | null>(null);
 
   const onSubmitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -281,11 +282,12 @@ function PublicSite() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [settings, testimonials, projects, areas] = await Promise.allSettled([
+        const [settings, testimonials, projects, areas, contact] = await Promise.allSettled([
           homepageSettingsService.get(),
           testimonialService.getAll(),
           projectService.getAll(),
           serviceAreaService.getAll(),
+          contactInfoService.get(),
         ]);
         if (settings.status === 'fulfilled') setHomepageSettings(settings.value);
         if (testimonials.status === 'fulfilled') {
@@ -297,6 +299,9 @@ function PublicSite() {
         if (areas.status === 'fulfilled') {
           setLiveAreas(areas.value);
         }
+        if (contact.status === 'fulfilled') {
+          setLiveContactInfo(contact.value);
+        }
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {
@@ -306,9 +311,15 @@ function PublicSite() {
     fetchData();
   }, []);
 
-  const phoneNumber = "+916370268346";
-  const whatsappNumber = "916370268346";
-  const callHref = `tel:${phoneNumber}`;
+  const phoneNumber = liveContactInfo?.phone1 || "+91 63702 68346";
+  const whatsappNumber = liveContactInfo?.whatsapp || "916370268346";
+  const emailAddress = liveContactInfo?.email || "maakamakhya9666@gmail.com";
+  const businessAddress = liveContactInfo?.address || "Golaghat District, Assam, India";
+  
+  const fbLink = liveContactInfo?.facebook || "https://facebook.com/maakamakhyaroofing";
+  const igLink = liveContactInfo?.instagram || "https://instagram.com/maakamakhyaroofing";
+
+  const callHref = `tel:${phoneNumber.replace(/\\s+/g, '')}`;
   const waHref = `https://wa.me/${whatsappNumber}?text=Hello%2C%20I%20would%20like%20to%20get%20a%20free%20roofing%20quote.`;
 
   return (
@@ -1026,13 +1037,14 @@ function PublicSite() {
               </p>
               <div className="flex gap-3">
                 {[
-                  { Icon: Facebook, label: "Facebook" },
-                  { Icon: Instagram, label: "Instagram" },
-                  { Icon: Youtube, label: "YouTube" },
-                ].map(({ Icon, label }) => (
+                  { Icon: Facebook, label: "Facebook", href: fbLink },
+                  { Icon: Instagram, label: "Instagram", href: igLink },
+                ].map(({ Icon, label, href }) => (
                   <a
                     key={label}
-                    href="#"
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     aria-label={label}
                     className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center hover:bg-[#F4B400] hover:text-[#0B2E6B] transition-colors text-white/70"
                   >
@@ -1087,9 +1099,8 @@ function PublicSite() {
               </h4>
               <ul className="space-y-3">
                 {[
-                  { label: "+91 63702 68346", href: "tel:+916370268346" },
-                  { label: "+91 80115 84169", href: "tel:+918011584169" },
-                  { label: "+91 60009 66614", href: "tel:+916000966614" },
+                  { label: phoneNumber, href: callHref },
+                  ...(liveContactInfo?.phone2 ? [{ label: liveContactInfo.phone2, href: `tel:${liveContactInfo.phone2.replace(/\\s+/g, '')}` }] : []),
                 ].map(({ label, href }) => (
                   <li key={label}>
                     <a
@@ -1103,16 +1114,16 @@ function PublicSite() {
                 ))}
                 <li>
                   <a
-                    href="mailto:maakamakhya9666@gmail.com"
+                    href={`mailto:${emailAddress}`}
                     className="flex items-center gap-2.5 text-white/60 text-sm hover:text-[#F4B400] transition-colors break-all"
                   >
                     <Mail className="w-4 h-4 text-[#F4B400] shrink-0" />{" "}
-                    maakamakhya9666@gmail.com
+                    {emailAddress}
                   </a>
                 </li>
                 <li className="flex items-start gap-2.5 text-white/60 text-sm">
                   <MapPin className="w-4 h-4 text-[#F4B400] shrink-0 mt-0.5" />{" "}
-                  Golaghat District, Assam, India
+                  {businessAddress}
                 </li>
               </ul>
             </div>

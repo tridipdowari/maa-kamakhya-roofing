@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Save, Phone, Mail, MapPin, MessageCircle, Link, Facebook, Instagram, Youtube } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
-import { mockContactInfo } from '../data/mockData';
+import { contactInfoService } from '@/lib/supabaseService';
 import type { ContactInfo } from '../types';
 
 interface FieldProps {
@@ -25,20 +25,52 @@ function Field({ label, id, icon, children }: FieldProps) {
 }
 
 export default function ContactInfoPage() {
-  const [info, setInfo] = useState<ContactInfo>(mockContactInfo);
+  const [info, setInfo] = useState<ContactInfo | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  React.useEffect(() => {
+    const fetchInfo = async () => {
+      try {
+        setLoading(true);
+        const data = await contactInfoService.get();
+        setInfo(data);
+      } catch (err) {
+        console.error('Failed to fetch contact info:', err);
+        toast.error('Failed to load contact information');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInfo();
+  }, []);
+
   const set = (key: keyof ContactInfo) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setInfo(v => ({ ...v, [key]: e.target.value }));
+    setInfo(v => v ? { ...v, [key]: e.target.value } : null);
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0B2E6B]/20 focus:border-[#0B2E6B] transition-all bg-white';
 
   const handleSave = async () => {
-    setSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSaving(false);
-    toast.success('Contact information saved successfully');
+    if (!info) return;
+    try {
+      setSaving(true);
+      await contactInfoService.update(info);
+      toast.success('Contact information saved successfully');
+    } catch (err) {
+      console.error('Failed to save contact info:', err);
+      toast.error('Failed to save contact information');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading || !info) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="w-8 h-8 border-4 border-[#0B2E6B]/30 border-t-[#0B2E6B] rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div>
