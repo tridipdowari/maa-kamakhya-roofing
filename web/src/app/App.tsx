@@ -217,7 +217,6 @@ function PublicSite() {
   const [loading, setLoading] = useState(true);
   const [liveTestimonials, setLiveTestimonials] = useState<Testimonial[]>([]);
   const [liveProjects, setLiveProjects] = useState<Project[]>([]);
-  const [selectedService, setSelectedService] = useState<{title: string, desc: string, icon: any, features: string[]} | null>(null);
 
   const onSubmitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -646,9 +645,8 @@ function PublicSite() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {SERVICES.map(({ title, desc, icon: Icon, features }) => (
               <div
-                onClick={() => setSelectedService({ title, desc, icon: Icon, features })}
                 key={title}
-                className="group bg-background rounded-2xl p-7 border border-border hover:border-[#0B2E6B]/30 hover:shadow-lg transition-all cursor-pointer text-left"
+                className="group bg-background rounded-2xl p-7 border border-border hover:border-[#0B2E6B]/30 hover:shadow-lg transition-all text-left"
               >
                 <div className="w-14 h-14 bg-[#0B2E6B] rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#D72626] transition-colors">
                   <Icon className="w-7 h-7 text-white" />
@@ -659,9 +657,6 @@ function PublicSite() {
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {desc}
                 </p>
-                <div className="mt-4 flex items-center gap-1.5 text-[#D72626] text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Learn more <ChevronRight className="w-4 h-4" />
-                </div>
               </div>
             ))}
             {/* CTA card */}
@@ -684,64 +679,6 @@ function PublicSite() {
             </div>
           </div>
         </div>
-
-        {/* Service Modal */}
-        {selectedService && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedService(null)} />
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full relative z-10 animate-in fade-in zoom-in duration-200">
-              <button 
-                onClick={() => setSelectedService(null)}
-                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-600" />
-              </button>
-              <div className="w-16 h-16 bg-[#0B2E6B]/10 rounded-2xl flex items-center justify-center mb-6">
-                <selectedService.icon className="w-8 h-8 text-[#0B2E6B]" />
-              </div>
-              <h3 className="font-['Poppins',sans-serif] font-black text-2xl text-[#0B2E6B] mb-3">
-                {selectedService.title}
-              </h3>
-              <p className="text-gray-600 leading-relaxed mb-6">
-                {selectedService.desc}
-              </p>
-              
-              <div className="mb-8">
-                <h4 className="text-sm font-bold text-[#0B2E6B] uppercase tracking-wider mb-3">What's Included:</h4>
-                <ul className="space-y-2.5">
-                  {selectedService.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-gray-600 text-sm">
-                      <CheckCircle2 className="w-4 h-4 text-[#F4B400] shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <a
-                href="#contact"
-                onClick={() => {
-                  setSelectedService(null);
-                  setTimeout(() => {
-                    const select = document.getElementById('service') as HTMLSelectElement;
-                    if (select) {
-                      const titleLower = selectedService.title.toLowerCase();
-                      const val = titleLower.includes('metal') ? 'metal' :
-                                  titleLower.includes('repair') ? 'repair' :
-                                  titleLower.includes('installation') ? 'installation' :
-                                  titleLower.includes('leak') ? 'leak' :
-                                  titleLower.includes('shed') ? 'shed' : 'other';
-                      select.value = val;
-                    }
-                  }, 100);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#F4B400] text-[#0B2E6B] font-bold hover:bg-yellow-400 transition-colors shadow-sm"
-              >
-                Get a Quote for this <ArrowRight className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* ── WHY CHOOSE US ── */}
