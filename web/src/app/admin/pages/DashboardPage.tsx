@@ -12,6 +12,7 @@ import { CardSkeleton, TableSkeleton } from '../components/LoadingSkeleton';
 import { quoteRequestService } from '@/lib/supabaseService';
 import { testimonialService } from '@/lib/supabaseService';
 import { projectService } from '@/lib/supabaseService';
+import { supabase } from '@/lib/supabase';
 
 const STATUS_COLORS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-700',
@@ -39,10 +40,14 @@ export default function DashboardPage() {
         setQuotes(quotesData);
         setTestimonials(testimonialsData);
         setProjects(projectsData);
-        // For now, we'll use a static last login - in a real app this would come from auth
-        setLastLogin(new Date(2026, 5, 13, 8, 30).toLocaleString('en-IN', {
-          dateStyle: 'medium', timeStyle: 'short',
-        }));
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user?.last_sign_in_at) {
+          setLastLogin(new Date(authData.user.last_sign_in_at).toLocaleString('en-IN', {
+            dateStyle: 'medium', timeStyle: 'short',
+          }));
+        } else {
+          setLastLogin('Recent');
+        }
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
       } finally {
@@ -56,15 +61,26 @@ export default function DashboardPage() {
   const pending = quotes.filter((q: any) => q.status === 'Pending').length;
   const published = testimonials.filter((t: any) => t.status === 'Published').length;
 
-  // Create quote status data for the chart (simplified version)
-  const quoteStatusData = [
-    { month: 'Jan', pending: 4, contacted: 6, closed: 8 },
-    { month: 'Feb', pending: 3, contacted: 7, closed: 9 },
-    { month: 'Mar', pending: 6, contacted: 5, closed: 11 },
-    { month: 'Apr', pending: 8, contacted: 9, closed: 7 },
-    { month: 'May', pending: 5, contacted: 11, closed: 12 },
-    { month: 'Jun', pending: 3, contacted: 4, closed: 5 },
-  ];
+  // Create dynamic quote status data for the last 6 months
+  const monthMap: Record<string, { month: string; pending: number; contacted: number; closed: number }> = {};
+  
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    monthMap[month] = { month, pending: 0, contacted: 0, closed: 0 };
+  }
+
+  quotes.forEach((q: any) => {
+    const month = new Date(q.dateSubmitted).toLocaleString('en-US', { month: 'short' });
+    if (monthMap[month]) {
+      if (q.status === 'Pending') monthMap[month].pending++;
+      else if (q.status === 'Contacted') monthMap[month].contacted++;
+      else if (q.status === 'Closed') monthMap[month].closed++;
+    }
+  });
+
+  const quoteStatusData = Object.values(monthMap);
 
   return (
     <div>
@@ -127,13 +143,11 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Website Visits"
-            value="1,240"
+            value="N/A"
             icon={Globe}
             iconBg="bg-emerald-50"
             iconColor="text-emerald-600"
-            trend="+18%"
-            trendUp
-            subtitle="This month"
+            subtitle="Connect Google Analytics"
           />
           <StatCard
             title="Last Login"
