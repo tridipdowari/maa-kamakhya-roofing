@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, CheckCheck, Trash2, Filter, FileText } from 'lucide-react';
+import { Search, Eye, CheckCheck, Trash2, Filter, FileText, Phone } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
@@ -64,6 +64,17 @@ export default function QuoteRequestsPage() {
       toast.success('Quote marked as Contacted');
     } catch (err) {
       console.error('Failed to mark quote as contacted:', err);
+      toast.error('Failed to update quote status');
+    }
+  };
+
+  const markClosed = async (id: string) => {
+    try {
+      await quoteRequestService.update(id, { status: 'Closed' });
+      setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'Closed' } : q));
+      toast.success('Quote marked as Closed');
+    } catch (err) {
+      console.error('Failed to mark quote as closed:', err);
       toast.error('Failed to update quote status');
     }
   };
@@ -190,6 +201,15 @@ export default function QuoteRequestsPage() {
                           <button type="button"
                             onClick={() => markContacted(q.id)}
                             title="Mark as Contacted"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {q.status !== 'Closed' && (
+                          <button type="button"
+                            onClick={() => markClosed(q.id)}
+                            title="Mark as Closed"
                             className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                           >
                             <CheckCheck className="w-3.5 h-3.5" />
@@ -291,9 +311,17 @@ export default function QuoteRequestsPage() {
                   {selectedQuote.status === 'Pending' && (
                     <button type="button"
                       onClick={() => { markContacted(selectedQuote.id); setSelectedQuote(null); }}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-colors"
+                    >
+                      <Phone className="w-4 h-4" /> Mark Contacted
+                    </button>
+                  )}
+                  {selectedQuote.status !== 'Closed' && (
+                    <button type="button"
+                      onClick={() => { markClosed(selectedQuote.id); setSelectedQuote(null); }}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#0B2E6B] text-white text-sm font-bold hover:bg-[#0a2660] transition-colors"
                     >
-                      <CheckCheck className="w-4 h-4" /> Mark Contacted
+                      <CheckCheck className="w-4 h-4" /> Mark Closed
                     </button>
                   )}
                   <button type="button"
