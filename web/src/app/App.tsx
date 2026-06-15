@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router";
 import { Toaster } from "sonner";
-import { quoteRequestService, homepageSettingsService, testimonialService, projectService } from "../lib/supabaseService";
-import type { HomepageSettings, Testimonial, Project } from "../lib/supabaseService";
+import { quoteRequestService, homepageSettingsService, testimonialService, projectService, serviceAreaService } from "../lib/supabaseService";
+import type { HomepageSettings, Testimonial, Project, ServiceArea } from "../lib/supabaseService";
 import {
   Phone,
   MessageCircle,
@@ -217,6 +217,7 @@ function PublicSite() {
   const [loading, setLoading] = useState(true);
   const [liveTestimonials, setLiveTestimonials] = useState<Testimonial[]>([]);
   const [liveProjects, setLiveProjects] = useState<Project[]>([]);
+  const [liveAreas, setLiveAreas] = useState<ServiceArea[]>([]);
 
   const onSubmitForm = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -280,10 +281,11 @@ function PublicSite() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [settings, testimonials, projects] = await Promise.allSettled([
+        const [settings, testimonials, projects, areas] = await Promise.allSettled([
           homepageSettingsService.get(),
           testimonialService.getAll(),
           projectService.getAll(),
+          serviceAreaService.getAll(),
         ]);
         if (settings.status === 'fulfilled') setHomepageSettings(settings.value);
         if (testimonials.status === 'fulfilled') {
@@ -291,6 +293,9 @@ function PublicSite() {
         }
         if (projects.status === 'fulfilled') {
           setLiveProjects(projects.value.slice(0, 6));
+        }
+        if (areas.status === 'fulfilled') {
+          setLiveAreas(areas.value);
         }
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -835,7 +840,7 @@ function PublicSite() {
                 around these areas, we are ready to help.
               </p>
               <div className="flex flex-wrap gap-3">
-                {AREAS.map((area) => (
+                {(liveAreas.length > 0 ? liveAreas.map(a => a.name) : AREAS).map((area) => (
                   <div
                     key={area}
                     className="flex items-center gap-2 bg-white border border-border rounded-xl px-4 py-2.5 shadow-sm"

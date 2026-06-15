@@ -5,14 +5,15 @@ import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
-import { mockServiceAreas } from '../data/mockData';
+import { serviceAreaService } from '@/lib/supabaseService';
 import type { ServiceArea } from '../types';
 
 interface AreaForm { name: string; district: string; description: string; }
 const emptyForm: AreaForm = { name: '', district: '', description: '' };
 
 export default function ServiceAreasPage() {
-  const [areas, setAreas] = useState<ServiceArea[]>(mockServiceAreas);
+  const [areas, setAreas] = useState<ServiceArea[]>([]);
+  const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -25,27 +26,54 @@ export default function ServiceAreasPage() {
     setFormOpen(true);
   };
 
-  const handleSave = () => {
+  React.useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        setLoading(true);
+        const data = await serviceAreaService.getAll();
+        setAreas(data);
+      } catch (err) {
+        console.error('Failed to fetch areas:', err);
+        toast.error('Failed to load service areas');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAreas();
+  }, []);
+
+  const handleSave = async () => {
     if (!form.name) { toast.error('Area name is required'); return; }
-    if (editingId) {
-      setAreas(prev => prev.map(a => a.id === editingId ? { ...a, ...form } : a));
-      toast.success('Service area updated');
-    } else {
-      const newArea: ServiceArea = {
-        id: `SA-${String(areas.length + 1).padStart(3, '0')}`,
-        ...form,
-        projectCount: 0,
-      };
-      setAreas(prev => [...prev, newArea]);
-      toast.success('Service area added');
+    try {
+      if (editingId) {
+        const updated = await serviceAreaService.update(editingId, form);
+        setAreas(prev => prev.map(a => a.id === editingId ? updated : a));
+        toast.success('Service area updated');
+      } else {
+        const newArea = await serviceAreaService.create({
+          ...form,
+          projectCount: 0,
+        });
+        setAreas(prev => [...prev, newArea]);
+        toast.success('Service area added');
+      }
+      setFormOpen(false);
+    } catch (err) {
+      console.error('Failed to save area:', err);
+      toast.error('Failed to save service area');
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setAreas(prev => prev.filter(a => a.id !== id));
-    setDeleteId(null);
-    toast.success('Service area removed');
+  const handleDelete = async (id: string) => {
+    try {
+      await serviceAreaService.delete(id);
+      setAreas(prev => prev.filter(a => a.id !== id));
+      setDeleteId(null);
+      toast.success('Service area removed');
+    } catch (err) {
+      console.error('Failed to delete area:', err);
+      toast.error('Failed to remove service area');
+    }
   };
 
   const DISTRICT_COLORS: Record<string, string> = {
@@ -69,7 +97,11 @@ export default function ServiceAreasPage() {
         }
       />
 
-      {areas.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <div className="w-8 h-8 border-4 border-[#0B2E6B]/30 border-t-[#0B2E6B] rounded-full animate-spin" />
+        </div>
+      ) : areas.length === 0 ? (
         <EmptyState
           icon={MapPin}
           title="No service areas"
