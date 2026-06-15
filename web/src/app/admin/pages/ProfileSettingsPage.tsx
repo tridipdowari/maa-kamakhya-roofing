@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Save, Eye, EyeOff, Lock, User, Camera, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '../components/PageHeader';
-import { mockAdminProfile } from '../data/mockData';
+import { adminProfileService } from '@/lib/supabaseService';
+import { supabase } from '@/lib/supabase';
+import type { AdminProfile } from '../types';
 
 export default function ProfileSettingsPage() {
-  const [profile, setProfile] = useState(mockAdminProfile);
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -14,11 +17,40 @@ export default function ProfileSettingsPage() {
 
   const inputClass = 'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0B2E6B]/20 focus:border-[#0B2E6B] transition-all bg-white';
 
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const data = await adminProfileService.get();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user?.last_sign_in_at) {
+          data.lastLogin = user.last_sign_in_at;
+        }
+        
+        setProfile(data);
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+        toast.error('Failed to load profile settings');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   const handleSaveProfile = async () => {
-    setSavingProfile(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSavingProfile(false);
-    toast.success('Profile updated successfully');
+    if (!profile) return;
+    try {
+      setSavingProfile(true);
+      await adminProfileService.update(profile);
+      toast.success('Profile updated successfully');
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      toast.error('Failed to update profile');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -28,16 +60,34 @@ export default function ProfileSettingsPage() {
     else if (passwords.new.length < 8) errs.new = 'Must be at least 8 characters';
     if (passwords.new !== passwords.confirm) errs.confirm = 'Passwords do not match';
     if (Object.keys(errs).length) { setPasswordErrors(errs); return; }
+    
     setPasswordErrors({});
     setSavingPassword(true);
-    await new Promise(r => setTimeout(r, 900));
-    setSavingPassword(false);
-    setPasswords({ current: '', new: '', confirm: '' });
-    toast.success('Password changed successfully');
+    
+    try {
+      const { error } = await supabase.auth.updateUser({ password: passwords.new });
+      if (error) throw error;
+      
+      setPasswords({ current: '', new: '', confirm: '' });
+      toast.success('Password changed successfully');
+    } catch (err: any) {
+      console.error('Failed to change password:', err);
+      toast.error(err.message || 'Failed to change password');
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const toggleShow = (field: 'current' | 'new' | 'confirm') =>
     setShowPasswords(v => ({ ...v, [field]: !v[field] }));
+
+  if (loading || !profile) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="w-8 h-8 border-4 border-[#0B2E6B]/30 border-t-[#0B2E6B] rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -99,7 +149,7 @@ export default function ProfileSettingsPage() {
                     id="admin-name"
                     type="text"
                     value={profile.name}
-                    onChange={e => setProfile(v => ({ ...v, name: e.target.value }))}
+                    onChange={e => setProfile(v => v ? { ...v, name: e.target.value } : null)}
                     className={inputClass}
                   />
                 </div>
@@ -109,7 +159,7 @@ export default function ProfileSettingsPage() {
                     id="admin-role"
                     type="text"
                     value={profile.role}
-                    onChange={e => setProfile(v => ({ ...v, role: e.target.value }))}
+                    onChange={e => setProfile(v => v ? { ...v, role: e.target.value } : null)}
                     className={inputClass}
                   />
                 </div>
@@ -120,7 +170,7 @@ export default function ProfileSettingsPage() {
                   id="admin-email-profile"
                   type="email"
                   value={profile.email}
-                  onChange={e => setProfile(v => ({ ...v, email: e.target.value }))}
+                  onChange={e => setProfile(v => v ? { ...v, email: e.target.value } : null)}
                   className={inputClass}
                 />
               </div>
