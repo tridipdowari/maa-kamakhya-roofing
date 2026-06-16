@@ -24,8 +24,9 @@ export default function ProfileSettingsPage() {
         const data = await adminProfileService.get();
         const { data: { user } } = await supabase.auth.getUser();
         
-        if (user?.last_sign_in_at) {
-          data.lastLogin = user.last_sign_in_at;
+        if (user) {
+          if (user.last_sign_in_at) data.lastLogin = user.last_sign_in_at;
+          if (user.email) data.email = user.email;
         }
         
         setProfile(data);
@@ -65,6 +66,18 @@ export default function ProfileSettingsPage() {
     setSavingPassword(true);
     
     try {
+      // Verify current password first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: profile?.email || '',
+        password: passwords.current,
+      });
+
+      if (signInError) {
+        setPasswordErrors({ current: 'Incorrect current password' });
+        setSavingPassword(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password: passwords.new });
       if (error) throw error;
       
@@ -159,19 +172,21 @@ export default function ProfileSettingsPage() {
                     id="admin-role"
                     type="text"
                     value={profile.role}
-                    onChange={e => setProfile(v => v ? { ...v, role: e.target.value } : null)}
-                    className={inputClass}
+                    disabled
+                    title="Role cannot be changed here."
+                    className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed`}
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="admin-email-profile" className="block text-xs font-semibold text-gray-600 mb-1.5">Email Address</label>
+                <label htmlFor="admin-email-profile" className="block text-xs font-semibold text-gray-600 mb-1.5">Email Address (Login)</label>
                 <input
                   id="admin-email-profile"
                   type="email"
                   value={profile.email}
-                  onChange={e => setProfile(v => v ? { ...v, email: e.target.value } : null)}
-                  className={inputClass}
+                  disabled
+                  title="Your login email cannot be changed here."
+                  className={`${inputClass} bg-gray-50 text-gray-500 cursor-not-allowed`}
                 />
               </div>
             </div>

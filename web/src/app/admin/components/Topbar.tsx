@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Bell, LogOut, User, Home, ChevronDown } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { quoteRequestService, adminProfileService } from '@/lib/supabaseService';
+import { supabase } from '@/lib/supabase';
 import type { QuoteRequest, AdminProfile } from '../types';
 
 interface TopbarProps {
@@ -18,11 +19,15 @@ export function Topbar({ sidebarCollapsed: _ }: TopbarProps) {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const [qRes, pRes] = await Promise.all([
+        const [qRes, pRes, { data: { user } }] = await Promise.all([
           quoteRequestService.getAll(),
-          adminProfileService.get()
+          adminProfileService.get(),
+          supabase.auth.getUser()
         ]);
         setQuotes(qRes);
+        if (pRes && user?.email) {
+          pRes.email = user.email;
+        }
         setProfile(pRes);
       } catch (err) {
         console.error('Failed to fetch topbar data:', err);
