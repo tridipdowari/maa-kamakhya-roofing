@@ -1135,7 +1135,10 @@ function PublicSite() {
               &copy; {new Date().getFullYear()} Maa Kamakhya Roofing
               Contractors. All rights reserved.
             </p>
-            <p>Strong Roofs. Stronger Trust.</p>
+            <div className="flex items-center gap-4">
+              <p>Strong Roofs. Stronger Trust.</p>
+              <a href="/admin" className="hover:text-white transition-colors">Admin Access</a>
+            </div>
           </div>
         </div>
       </footer>
